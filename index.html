@@ -2,10 +2,15 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web Mini Piano</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pro Web Piano</title>
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
     body {
       margin: 0;
       min-height: 100vh;
@@ -13,210 +18,388 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #1e1e24;
-      font-family: sans-serif;
+      background: radial-gradient(circle at center, #242530 0%, #121318 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       color: #fff;
+      touch-action: none;
+      overflow: hidden;
+    }
+    .header {
+      margin-bottom: 24px;
+      text-align: center;
     }
     .controls {
-      margin-bottom: 24px;
       display: flex;
       gap: 10px;
+      background: #181920;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid #2d303e;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     }
     .mode-btn {
-      padding: 8px 16px;
-      border: 1px solid #444;
-      background: #2b2b36;
-      color: #ccc;
-      border-radius: 6px;
+      padding: 10px 18px;
+      border: none;
+      background: transparent;
+      color: #8c90a4;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 14px;
-      transition: 0.2s;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    .mode-btn:hover {
+      color: #fff;
     }
     .mode-btn.active {
-      background: #007acc;
-      border-color: #007acc;
+      background: #3b82f6;
       color: #fff;
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+    }
+    .piano-wrapper {
+      padding: 24px 20px 20px 20px;
+      background: linear-gradient(to bottom, #15161c, #0d0e12);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+      border-top: 3px solid #ef4444;
     }
     .piano {
       position: relative;
       display: flex;
+      height: 240px;
       background: #000;
-      padding: 10px;
-      border-radius: 8px;
-      user-select: none;
+      border-radius: 0 0 8px 8px;
+      touch-action: none;
     }
     .key {
       position: relative;
       cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 12px;
+      box-sizing: border-box;
+      transition: transform 0.05s ease, background-color 0.05s ease;
+    }
+    .key .label {
+      font-size: 11px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    .key .keybind {
+      font-size: 10px;
+      opacity: 0.5;
+      margin-top: 4px;
+      pointer-events: none;
     }
     .white {
-      width: 50px;
-      height: 180px;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 0 0 5px 5px;
+      width: 58px;
+      height: 100%;
+      background: linear-gradient(to bottom, #f7f7f7 0%, #ffffff 85%, #eaeaea 100%);
+      border: 1px solid #c9c9c9;
+      border-bottom: 4px solid #b5b5b5;
+      border-radius: 0 0 6px 6px;
+      color: #333;
       z-index: 1;
     }
-    .white:active, .white.active {
-      background: #ddd;
+    .white.active {
+      background: linear-gradient(to bottom, #e2e8f0 0%, #cbd5e1 100%);
+      border-bottom-width: 1px;
+      transform: translateY(3px);
     }
     .black {
-      width: 30px;
-      height: 110px;
-      background: #111;
-      margin-left: -15px;
-      margin-right: -15px;
+      width: 36px;
+      height: 60%;
+      background: linear-gradient(to bottom, #33353d 0%, #17181c 100%);
+      margin-left: -18px;
+      margin-right: -18px;
       z-index: 2;
-      border-radius: 0 0 3px 3px;
+      border-radius: 0 0 4px 4px;
+      border: 1px solid #111;
+      border-bottom: 4px solid #000;
+      box-shadow: 2px 4px 6px rgba(0,0,0,0.5);
+      color: #94a3b8;
     }
-    .black:active, .black.active {
-      background: #333;
+    .black.active {
+      background: linear-gradient(to bottom, #2563eb 0%, #1d4ed8 100%);
+      border-bottom-width: 1px;
+      transform: translateY(3px);
+      color: #fff;
+    }
+    .status-bar {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
     }
   </style>
 </head>
 <body>
 
-  <div class="controls">
-    <button class="mode-btn active" data-sound="piano">鋼琴 (Piano)</button>
-    <button class="mode-btn" data-sound="guitar">電吉他 (Guitar)</button>
-    <button class="mode-btn" data-sound="cat">貓咪 (Meow)</button>
-    <button class="mode-btn" data-sound="dog">狗狗 (Woof)</button>
+  <div class="header">
+    <div class="controls">
+      <button class="mode-btn active" data-sound="piano">真實鋼琴</button>
+      <button class="mode-btn" data-sound="guitar">破音電吉他</button>
+      <button class="mode-btn" data-sound="cat">貓咪叫聲</button>
+      <button class="mode-btn" data-sound="dog">狗狗吠聲</button>
+    </div>
   </div>
 
-  <div class="piano" id="keyboard">
-    <div class="key white" data-freq="261.63"></div> <!-- C4 -->
-    <div class="key black" data-freq="277.18"></div> <!-- C#4 -->
-    <div class="key white" data-freq="293.66"></div> <!-- D4 -->
-    <div class="key black" data-freq="311.13"></div> <!-- D#4 -->
-    <div class="key white" data-freq="329.63"></div> <!-- E4 -->
-    <div class="key white" data-freq="349.23"></div> <!-- F4 -->
-    <div class="key black" data-freq="369.99"></div> <!-- F#4 -->
-    <div class="key white" data-freq="392.00"></div> <!-- G4 -->
-    <div class="key black" data-freq="415.30"></div> <!-- G#4 -->
-    <div class="key white" data-freq="440.00"></div> <!-- A4 -->
-    <div class="key black" data-freq="466.16"></div> <!-- A#4 -->
-    <div class="key white" data-freq="493.88"></div> <!-- B4 -->
-    <div class="key white" data-freq="523.25"></div> <!-- C5 -->
+  <div class="piano-wrapper">
+    <div class="piano" id="keyboard">
+      <div class="key white" data-freq="261.63" data-key="a"><span class="label">C4</span><span class="keybind">A</span></div>
+      <div class="key black" data-freq="277.18" data-key="w"><span class="label">C#</span><span class="keybind">W</span></div>
+      <div class="key white" data-freq="293.66" data-key="s"><span class="label">D4</span><span class="keybind">S</span></div>
+      <div class="key black" data-freq="311.13" data-key="e"><span class="label">D#</span><span class="keybind">E</span></div>
+      <div class="key white" data-freq="329.63" data-key="d"><span class="label">E4</span><span class="keybind">D</span></div>
+      <div class="key white" data-freq="349.23" data-key="f"><span class="label">F4</span><span class="keybind">F</span></div>
+      <div class="key black" data-freq="369.99" data-key="t"><span class="label">F#</span><span class="keybind">T</span></div>
+      <div class="key white" data-freq="392.00" data-key="g"><span class="label">G4</span><span class="keybind">G</span></div>
+      <div class="key black" data-freq="415.30" data-key="y"><span class="label">G#</span><span class="keybind">Y</span></div>
+      <div class="key white" data-freq="440.00" data-key="h"><span class="label">A4</span><span class="keybind">H</span></div>
+      <div class="key black" data-freq="466.16" data-key="u"><span class="label">A#</span><span class="keybind">U</span></div>
+      <div class="key white" data-freq="493.88" data-key="j"><span class="label">B4</span><span class="keybind">J</span></div>
+      <div class="key white" data-freq="523.25" data-key="k"><span class="label">C5</span><span class="keybind">K</span></div>
+    </div>
   </div>
+
+  <div class="status-bar" id="status-bar">支援多鍵同按、和弦彈奏、滑鼠/觸控滑音刮鍵</div>
 
   <script>
     let audioCtx = null;
     let currentSound = 'piano';
+    const buffers = { guitar: null, cat: null, dog: null };
 
     function initAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        loadLocalAudio('guitar', './guitar.mp3');
+        loadLocalAudio('cat', './cat.mp3');
+        loadLocalAudio('dog', './dog.mp3');
       }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    async function loadLocalAudio(name, path) {
+      try {
+        const res = await fetch(path);
+        if (!res.ok) return;
+        const arrayBuf = await res.arrayBuffer();
+        buffers[name] = await audioCtx.decodeAudioData(arrayBuf);
+      } catch (err) {}
     }
 
     // 模式切換
     document.querySelectorAll('.mode-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        initAudio();
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentSound = btn.dataset.sound;
       });
     });
 
-    // 聲音合成器核心
-    function playSound(freq) {
+    // 破音電吉他非線性傳遞函數
+    function getGuitarCurve() {
+      const k = 100;
+      const n_samples = 44100;
+      const curve = new Float32Array(n_samples);
+      const deg = Math.PI / 180;
+      for (let i = 0; i < n_samples; ++i) {
+        const x = (i * 2) / n_samples - 1;
+        curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+      }
+      return curve;
+    }
+    const guitarDistCurve = getGuitarCurve();
+
+    // 複音觸發引擎 (Polyphonic Audio Engine)
+    function noteOn(freq) {
       initAudio();
       const t = audioCtx.currentTime;
 
       if (currentSound === 'piano') {
-        // 鋼琴：三角波 + 快速起音 + 平緩衰減
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, t);
-
-        gain.gain.setValueAtTime(0.6, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(t);
-        osc.stop(t + 1.2);
-
-      } else if (currentSound === 'guitar') {
-        // 電吉他：鋸齒波 + 低通濾波 + 破音曲線
-        const osc = audioCtx.createOscillator();
-        const filter = audioCtx.createBiquadFilter();
-        const dist = audioCtx.createWaveShaper();
+        // 多諧波鋼琴弦槌演算法
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, t);
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(freq, t);
 
-        // 破音 (Distortion)
-        const curve = new Float32Array(256);
-        for (let i = 0; i < 256; i++) {
-          let x = (i * 2) / 256 - 1;
-          curve[i] = (Math.PI + 20) * x / (Math.PI + 20 * Math.abs(x));
-        }
-        dist.curve = curve;
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(freq * 3, t);
-
-        gain.gain.setValueAtTime(0.4, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
-
-        osc.connect(filter);
-        filter.connect(dist);
-        dist.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc.start(t);
-        osc.stop(t + 1.5);
-
-      } else if (currentSound === 'cat') {
-        // 貓叫：正弦波 + 滑音 (頻率先升後降)
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-
-        osc.frequency.setValueAtTime(freq * 1.2, t);
-        osc.frequency.linearRampToValueAtTime(freq * 1.6, t + 0.15);
-        osc.frequency.exponentialRampToValueAtTime(freq * 0.9, t + 0.45);
-
-        gain.gain.setValueAtTime(0.01, t);
-        gain.gain.linearRampToValueAtTime(0.5, t + 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(t);
-        osc.stop(t + 0.45);
-
-      } else if (currentSound === 'dog') {
-        // 狗叫：方波 + 快速往下砸的短促頻率 + 短 Envelope
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-
-        const base = Math.max(freq * 0.6, 100);
-        osc.frequency.setValueAtTime(base * 2.5, t);
-        osc.frequency.exponentialRampToValueAtTime(base, t + 0.15);
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(freq * 2, t);
 
         gain.gain.setValueAtTime(0.7, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
 
-        osc.connect(gain);
+        osc1.connect(gain);
+        osc2.connect(gain);
         gain.connect(audioCtx.destination);
-        osc.start(t);
-        osc.stop(t + 0.18);
+
+        osc1.start(t);
+        osc2.start(t);
+        osc1.stop(t + 1.6);
+        osc2.stop(t + 1.6);
+
+      } else if (currentSound === 'guitar') {
+        if (buffers.guitar) {
+          playBuffer(buffers.guitar, freq, t);
+        } else {
+          // 實時合成重破音電吉他
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const drive = audioCtx.createGain();
+          const shaper = audioCtx.createWaveShaper();
+          const filter = audioCtx.createBiquadFilter();
+          const outGain = audioCtx.createGain();
+
+          osc1.type = 'sawtooth';
+          osc1.frequency.setValueAtTime(freq, t);
+
+          osc2.type = 'square';
+          osc2.frequency.setValueAtTime(freq * 0.5, t);
+
+          drive.gain.setValueAtTime(3.0, t);
+          shaper.curve = guitarDistCurve;
+          shaper.oversample = '4x';
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(3000, t);
+
+          outGain.gain.setValueAtTime(0.3, t);
+          outGain.gain.exponentialRampToValueAtTime(0.0001, t + 2.0);
+
+          osc1.connect(drive);
+          osc2.connect(drive);
+          drive.connect(shaper);
+          shaper.connect(filter);
+          filter.connect(outGain);
+          outGain.connect(audioCtx.destination);
+
+          osc1.start(t);
+          osc2.start(t);
+          osc1.stop(t + 2.0);
+          osc2.stop(t + 2.0);
+        }
+
+      } else if (currentSound === 'cat' || currentSound === 'dog') {
+        const buf = buffers[currentSound];
+        if (buf) {
+          playBuffer(buf, freq, t);
+        } else {
+          fallbackAnimalSynth(currentSound, freq, t);
+        }
       }
     }
 
-    // 鍵盤與點擊事件綁定
-    document.querySelectorAll('.key').forEach(key => {
-      key.addEventListener('mousedown', () => {
-        playSound(parseFloat(key.dataset.freq));
-      });
+    function playBuffer(buf, freq, t) {
+      const src = audioCtx.createBufferSource();
+      const gain = audioCtx.createGain();
+      src.buffer = buf;
+      src.playbackRate.setValueAtTime(freq / 261.63, t);
+      gain.gain.setValueAtTime(0.9, t);
+      src.connect(gain);
+      gain.connect(audioCtx.destination);
+      src.start(t);
+    }
+
+    function fallbackAnimalSynth(type, freq, t) {
+      const osc = audioCtx.createOscillator();
+      const filter = audioCtx.createBiquadFilter();
+      const gain = audioCtx.createGain();
+
+      if (type === 'cat') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq * 1.2, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.8, t + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.0, t + 0.45);
+
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1200, t);
+        filter.Q.setValueAtTime(3.0, t);
+
+        gain.gain.setValueAtTime(0.01, t);
+        gain.gain.linearRampToValueAtTime(0.4, t + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+        osc.start(t);
+        osc.stop(t + 0.45);
+      } else {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq * 0.8, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.3, t + 0.18);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(600, t);
+
+        gain.gain.setValueAtTime(0.7, t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        osc.start(t);
+        osc.stop(t + 0.18);
+      }
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+    }
+
+    // 滑音刮鍵與多點觸控引擎 (Pointer Tracking)
+    const activePointers = new Map();
+
+    const pianoEl = document.getElementById('keyboard');
+
+    function getKeyFromPoint(x, y) {
+      const el = document.elementFromPoint(x, y);
+      return el ? el.closest('.key') : null;
+    }
+
+    function handlePointerAction(e) {
+      const key = getKeyFromPoint(e.clientX, e.clientY);
+      const prevKey = activePointers.get(e.pointerId);
+
+      if (key !== prevKey) {
+        if (prevKey) prevKey.classList.remove('active');
+        if (key) {
+          key.classList.add('active');
+          noteOn(parseFloat(key.dataset.freq));
+          activePointers.set(e.pointerId, key);
+        } else {
+          activePointers.delete(e.pointerId);
+        }
+      }
+    }
+
+    pianoEl.addEventListener('pointerdown', (e) => {
+      initAudio();
+      handlePointerAction(e);
     });
 
-    // 電腦鍵盤對應 (A-K 鍵)
+    window.addEventListener('pointermove', (e) => {
+      // 確保按著按鍵或觸控接觸狀態下滑動才觸發
+      if (e.buttons === 1 || e.pointerType === 'touch') {
+        if (activePointers.has(e.pointerId) || getKeyFromPoint(e.clientX, e.clientY)) {
+          handlePointerAction(e);
+        }
+      }
+    });
+
+    function clearPointer(e) {
+      const key = activePointers.get(e.pointerId);
+      if (key) {
+        key.classList.remove('active');
+        activePointers.delete(e.pointerId);
+      }
+    }
+
+    window.addEventListener('pointerup', clearPointer);
+    window.addEventListener('pointercancel', clearPointer);
+
+    // 電腦鍵盤多鍵複音與和弦支援
+    const activeKeys = new Set();
     const keyMap = {
       'a': 261.63, 'w': 277.18, 's': 293.66, 'e': 311.13,
       'd': 329.63, 'f': 349.23, 't': 369.99, 'g': 392.00,
@@ -225,20 +408,21 @@
     };
 
     window.addEventListener('keydown', (e) => {
-      if (e.repeat) return;
-      const freq = keyMap[e.key.toLowerCase()];
-      if (freq) {
-        playSound(freq);
-        const target = document.querySelector(`.key[data-freq="${freq.toFixed(2)}"]`);
-        if (target) target.classList.add('active');
+      const k = e.key.toLowerCase();
+      if (keyMap[k] && !activeKeys.has(k)) {
+        activeKeys.add(k);
+        noteOn(keyMap[k]);
+        const keyEl = document.querySelector(`.key[data-key="${k}"]`);
+        if (keyEl) keyEl.classList.add('active');
       }
     });
 
     window.addEventListener('keyup', (e) => {
-      const freq = keyMap[e.key.toLowerCase()];
-      if (freq) {
-        const target = document.querySelector(`.key[data-freq="${freq.toFixed(2)}"]`);
-        if (target) target.classList.remove('active');
+      const k = e.key.toLowerCase();
+      if (activeKeys.has(k)) {
+        activeKeys.delete(k);
+        const keyEl = document.querySelector(`.key[data-key="${k}"]`);
+        if (keyEl) keyEl.classList.remove('active');
       }
     });
   </script>
