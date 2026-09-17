@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Mini Piano</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #1e1e24;
+      font-family: sans-serif;
+      color: #fff;
+    }
+    .controls {
+      margin-bottom: 24px;
+      display: flex;
+      gap: 10px;
+    }
+    .mode-btn {
+      padding: 8px 16px;
+      border: 1px solid #444;
+      background: #2b2b36;
+      color: #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+    .mode-btn.active {
+      background: #007acc;
+      border-color: #007acc;
+      color: #fff;
+    }
+    .piano {
+      position: relative;
+      display: flex;
+      background: #000;
+      padding: 10px;
+      border-radius: 8px;
+      user-select: none;
+    }
+    .key {
+      position: relative;
+      cursor: pointer;
+    }
+    .white {
+      width: 50px;
+      height: 180px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 0 0 5px 5px;
+      z-index: 1;
+    }
+    .white:active, .white.active {
+      background: #ddd;
+    }
+    .black {
+      width: 30px;
+      height: 110px;
+      background: #111;
+      margin-left: -15px;
+      margin-right: -15px;
+      z-index: 2;
+      border-radius: 0 0 3px 3px;
+    }
+    .black:active, .black.active {
+      background: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <button class="mode-btn active" data-sound="piano">鋼琴 (Piano)</button>
+    <button class="mode-btn" data-sound="guitar">電吉他 (Guitar)</button>
+    <button class="mode-btn" data-sound="cat">貓咪 (Meow)</button>
+    <button class="mode-btn" data-sound="dog">狗狗 (Woof)</button>
+  </div>
+
+  <div class="piano" id="keyboard">
+    <div class="key white" data-freq="261.63"></div> <!-- C4 -->
+    <div class="key black" data-freq="277.18"></div> <!-- C#4 -->
+    <div class="key white" data-freq="293.66"></div> <!-- D4 -->
+    <div class="key black" data-freq="311.13"></div> <!-- D#4 -->
+    <div class="key white" data-freq="329.63"></div> <!-- E4 -->
+    <div class="key white" data-freq="349.23"></div> <!-- F4 -->
+    <div class="key black" data-freq="369.99"></div> <!-- F#4 -->
+    <div class="key white" data-freq="392.00"></div> <!-- G4 -->
+    <div class="key black" data-freq="415.30"></div> <!-- G#4 -->
+    <div class="key white" data-freq="440.00"></div> <!-- A4 -->
+    <div class="key black" data-freq="466.16"></div> <!-- A#4 -->
+    <div class="key white" data-freq="493.88"></div> <!-- B4 -->
+    <div class="key white" data-freq="523.25"></div> <!-- C5 -->
+  </div>
+
+  <script>
+    let audioCtx = null;
+    let currentSound = 'piano';
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    // 模式切換
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSound = btn.dataset.sound;
+      });
+    });
+
+    // 聲音合成器核心
+    function playSound(freq) {
+      initAudio();
+      const t = audioCtx.currentTime;
+
+      if (currentSound === 'piano') {
+        // 鋼琴：三角波 + 快速起音 + 平緩衰減
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t);
+
+        gain.gain.setValueAtTime(0.6, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 1.2);
+
+      } else if (currentSound === 'guitar') {
+        // 電吉他：鋸齒波 + 低通濾波 + 破音曲線
+        const osc = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        const dist = audioCtx.createWaveShaper();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, t);
+
+        // 破音 (Distortion)
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let x = (i * 2) / 256 - 1;
+          curve[i] = (Math.PI + 20) * x / (Math.PI + 20 * Math.abs(x));
+        }
+        dist.curve = curve;
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(freq * 3, t);
+
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+
+        osc.connect(filter);
+        filter.connect(dist);
+        dist.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(t);
+        osc.stop(t + 1.5);
+
+      } else if (currentSound === 'cat') {
+        // 貓叫：正弦波 + 滑音 (頻率先升後降)
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+
+        osc.frequency.setValueAtTime(freq * 1.2, t);
+        osc.frequency.linearRampToValueAtTime(freq * 1.6, t + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.9, t + 0.45);
+
+        gain.gain.setValueAtTime(0.01, t);
+        gain.gain.linearRampToValueAtTime(0.5, t + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.45);
+
+      } else if (currentSound === 'dog') {
+        // 狗叫：方波 + 快速往下砸的短促頻率 + 短 Envelope
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+
+        const base = Math.max(freq * 0.6, 100);
+        osc.frequency.setValueAtTime(base * 2.5, t);
+        osc.frequency.exponentialRampToValueAtTime(base, t + 0.15);
+
+        gain.gain.setValueAtTime(0.7, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.18);
+      }
+    }
+
+    // 鍵盤與點擊事件綁定
+    document.querySelectorAll('.key').forEach(key => {
+      key.addEventListener('mousedown', () => {
+        playSound(parseFloat(key.dataset.freq));
+      });
+    });
+
+    // 電腦鍵盤對應 (A-K 鍵)
+    const keyMap = {
+      'a': 261.63, 'w': 277.18, 's': 293.66, 'e': 311.13,
+      'd': 329.63, 'f': 349.23, 't': 369.99, 'g': 392.00,
+      'y': 415.30, 'h': 440.00, 'u': 466.16, 'j': 493.88,
+      'k': 523.25
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      const freq = keyMap[e.key.toLowerCase()];
+      if (freq) {
+        playSound(freq);
+        const target = document.querySelector(`.key[data-freq="${freq.toFixed(2)}"]`);
+        if (target) target.classList.add('active');
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const freq = keyMap[e.key.toLowerCase()];
+      if (freq) {
+        const target = document.querySelector(`.key[data-freq="${freq.toFixed(2)}"]`);
+        if (target) target.classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>
